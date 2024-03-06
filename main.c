@@ -4,7 +4,8 @@
  *  - COMRXTIME=100 nagyon rövid volt 2024-01-25-ig, megnövelve 10 000-re  tobb intercom modul lekerdezesekor mindig soros kapcsolat hibabol indul, talan ezért nem megy a ' ' kiolvasas
  *  - egyszeres ' ' lekérdezés nem müködik jól 
  *  - nagyon lassan válaszol lekérdezésre 100...250msec
- * 2024-01-26 a soros kommunikáció felgyorsítva
+ * 2024-01-26 a soros a kommunikáció felgyorsítva
+ * Projekt átmenevezve IcomAD2024-re 2024-03-06
  */
 
 #include "mcc_generated_files/mcc.h"
@@ -18,7 +19,7 @@
 
 #define ARAMOFFSET 0x20   //áramméro tipikus mert erték ha nincs aram
 #define TULARAM    0x19   //offsethez kepest
-#define COMRXTIME 10000   //(WORD) ennyi ciklust vár a soros vonalon lekérdezésre, ha nem jön vált statikus hiba adásra
+#define COMRXTIME 10000   //(WORD) ennyi ciklust vár a soros vonalon lekérdezésre, ha nincs lekérdezés akkor hiba esetén statikus jelzést ad (BREAK) a soros vonalra
 
 void vetel(void);      //vetel a soros vonalon
 void adas_init(void);  //soros vonalon adas init ha kell
