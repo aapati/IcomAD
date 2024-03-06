@@ -1,0 +1,12 @@
+*.obj
+*.bak
+*.exe
+*.map
+*.dsw
+*.obr
+*.txt
+Makefile
+/build
+/debug
+/dist
+/nbproject
