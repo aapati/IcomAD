@@ -28,6 +28,9 @@ void adas();
 extern volatile uint8_t eusart1RxCount;
 volatile uint8_t rxData;  
 adc_result_t adc_mertadat[8],tmpw; //16 bit
+#ifdef HANGBUSZMER  
+  adc_result_t adc_mertadat1[8], adc_mertadat2[8];
+#endif
 uint8_t  adc_mertadatB[8]; //8 bit
 uint8_t i,j, soroskapcsolat=0, aramoffset = ARAMOFFSET;
 char buff[5];
@@ -45,6 +48,7 @@ uint8_t uzemmod; //vegyes uzemmod byte
 uint16_t timerrx; // vár vételre
 uint8_t  uart_adbuf[32];
 static uint8_t  bitkonv_tbl[] = {4,0,6,2,1,7,5,3};  // {4,0,6,?,1,?,3,5}; kérdöjeles értékek lehet hogy rosszak (felcserélend?k)! (HW hibák matt)
+uint8_t h_atlag_cnt[8];
 // - - - - - - - - -
 void main(void)
 {  
@@ -67,27 +71,65 @@ void main(void)
 
     // A/D mérés 8 csatornán       
         for(i=0;i<8; i++){
-            adc_mertadat[i]=0;         
+            adc_mertadat[i]=0; 
+#ifdef HANGBUSZMER            
+            adc_mertadat1[i]=0;
+            adc_mertadat2[i]=0;
+#endif            
         }
 #ifdef HANGBUSZMER
-        for(j=0; j<64; j++){ // több mérés átlaga 10 bit->16 bit. a ciklus kb.1.2msec
+        for(i=0; i<8; i++)  h_atlag_cnt[i]=0;  //clr minta cnt
+        
+        for(j=0; j<64; j++){ //mérés átlag és 10 bit->16 bit atalakitasa. a ciklus kb.1.2msec
             for(i=0; i<8; i++){ 
                 tmpw = ADC_GetConversion(i); //10 bit!
-                if(tmpw > 511)   // hang 0 pont      
-                    adc_mertadat[i] += tmpw - 511;
-                else 
-                    adc_mertadat[i] += 511 - tmpw;
-                __delay_us(1); //kell????
+                if(tmpw > 511){   // hang 0 pont      
+                    tmpw -= 511;
+                }else { 
+                    tmpw = 511 - tmpw;
+                } 
+            /*    
+                if(h_atlag_cnt[i]) { //0 osztás elkerülése
+                    if(tmpw > (adc_mertadat[i]/(h_atlag_cnt[i]*4) ) ) {
+                        adc_mertadat[i] += tmpw;
+                        h_atlag_cnt[i]++;
+                    }    
+                }else{ //elsö mért adat   
+                    adc_mertadat[i] = tmpw;
+                    h_atlag_cnt[i]++;
+                }
+             */
+                if(tmpw > adc_mertadat[i]){
+                    adc_mertadat[i] = tmpw;
+                }else if(tmpw > adc_mertadat1[i]) {  
+                    adc_mertadat1[i] = tmpw;
+                }else if(tmpw > adc_mertadat2[i]) {  
+                    adc_mertadat2[i] = tmpw;
+                }     
             }
             vetel();
             adas(); //ad ha kell
         }  //for j        
         
-        for(i=0;i<8; i++){  // 16->8 bit konverzio
-           tmpw  = adc_mertadat[i] >> 6;  
-           tmpw  = (tmpw*47)/40;
-           adc_mertadatB[bitkonv_tbl[i]] = (uint8_t)(tmpw & 0x00ff); //7  
-           //adc_mertadatB[bitkonv_tbl[i]] = (uint8_t)((adc_mertadat[i]>>6) & 0x00ff); //7             
+        for(i=0;i<8; i++){  // 16->8 bit konverzio, és mintaszám szerinti korrekció
+            /*
+            tmpw = adc_mertadat[i]/h_atlag_cnt[i];
+            if(h_atlag_cnt[i] > 15) {
+               tmpw >>6;
+            }else if(h_atlag_cnt[i] > 10) {          
+               tmpw  >>7;  
+            }else if(h_atlag_cnt[i] > 5) {          
+               tmpw  >>8;    
+            }else {
+                tmpw >>9; 
+            }    
+            */
+            tmpw = (adc_mertadat[i] + adc_mertadat1[i] +adc_mertadat2[i])/3;
+            
+            if( tmpw >= adc_mertadatB[bitkonv_tbl[i]] )
+                adc_mertadatB[bitkonv_tbl[i]] = (uint8_t)tmpw;
+            else
+                adc_mertadatB[bitkonv_tbl[i]] = (uint8_t)(tmpw + adc_mertadatB[bitkonv_tbl[i]])/2;                           
         }
 #else   //Intercom  tápmérés    
         for(j=0; j<64; j++){ // több mérés átlaga 10 bit->16 bit. a ciklus kb.1.2msec
